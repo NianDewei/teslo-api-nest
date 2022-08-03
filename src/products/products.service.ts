@@ -10,6 +10,9 @@ import { Repository } from 'typeorm';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './entities/product.entity';
+import { PaginationDto } from '../common/dto/pagination.dto';
+import { validate as isUUID } from 'uuid';
+// import { isUUID } from 'class-validator';
 
 @Injectable()
 export class ProductsService {
@@ -32,18 +35,41 @@ export class ProductsService {
   }
 
   // TODO paginar
-  async findAll() {
-    const products = await this.productRepository.find();
+  async findAll(paginateDto: PaginationDto) {
+    const { limit = 10, offset = 0 } = paginateDto;
+
+    const products = await this.productRepository.find({
+      take: limit,
+      skip: offset,
+      // TODO: relations
+    });
+
     return products;
   }
 
-  async findOne(id: string) {
-    // const product = await this.productRepository.findOneByOrFail({ id });
-    const product = await this.productRepository.findOneBy({ id });
-    if (!product)
-      throw new NotFoundException(`Product with id ${id} not found`);
+  async findOne(term: string) {
+    let product: Product;
+    if (isUUID(term)) {
+      product = await this.productRepository.findOneBy({ id: term });
+    } else {
+      product = await this.productRepository.findOneBy({ slug: term });
+    }
+
+    if (!product) {
+      throw new NotFoundException(`Product with ${term} not found`);
+    }
 
     return product;
+    // TODO: optional
+    // const product = [];
+    // if (isUUID(term)) {
+    //   product.push(await this.productRepository.findOneBy({ id: term }));
+    // }
+    // product.push(await this.productRepository.findOneBy({ slug: term }));
+    // if (!product[0]) {
+    //   throw new NotFoundException(`Product with ${term} not found`);
+    // }
+    // return product[0];
   }
 
   update(id: number, updateProductDto: UpdateProductDto) {
@@ -72,4 +98,8 @@ export class ProductsService {
       'We apologize for the problems, if the problem persists, please contact the administrator.',
     );
   }
+
+  // private isArrayNull(arr: any): boolean {
+  //   return arr.every((element: any) => element === null);
+  // }
 }
