@@ -52,7 +52,14 @@ export class ProductsService {
     if (isUUID(term)) {
       product = await this.productRepository.findOneBy({ id: term });
     } else {
-      product = await this.productRepository.findOneBy({ slug: term });
+      // search by slug or title Query Builder
+      const queryBuilder = this.productRepository.createQueryBuilder();
+      product = await queryBuilder
+        .where('UPPER(title) =:title or slug =:slug', {
+          title: term.toUpperCase(),
+          slug: term.toLowerCase(),
+        })
+        .getOne();
     }
 
     if (!product) {
@@ -60,16 +67,6 @@ export class ProductsService {
     }
 
     return product;
-    // TODO: optional
-    // const product = [];
-    // if (isUUID(term)) {
-    //   product.push(await this.productRepository.findOneBy({ id: term }));
-    // }
-    // product.push(await this.productRepository.findOneBy({ slug: term }));
-    // if (!product[0]) {
-    //   throw new NotFoundException(`Product with ${term} not found`);
-    // }
-    // return product[0];
   }
 
   update(id: number, updateProductDto: UpdateProductDto) {
@@ -77,13 +74,6 @@ export class ProductsService {
   }
 
   async remove(id: string) {
-    // try {
-    //   await this.productRepository.delete(id);
-    //   const message = 'Delete Success';
-    //   return { message };
-    // } catch (err) {
-    //   throw new BadRequestException({ err });
-    // }
     const product = await this.findOne(id);
     await this.productRepository.remove(product);
   }
@@ -98,8 +88,4 @@ export class ProductsService {
       'We apologize for the problems, if the problem persists, please contact the administrator.',
     );
   }
-
-  // private isArrayNull(arr: any): boolean {
-  //   return arr.every((element: any) => element === null);
-  // }
 }
