@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './entities/product.entity';
@@ -24,6 +24,7 @@ export class ProductsService {
     private readonly productRepository: Repository<Product>,
     @InjectRepository(ProductImage)
     private readonly productImageRepository: Repository<ProductImage>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(createProductDto: CreateProductDto) {
@@ -53,42 +54,53 @@ export class ProductsService {
       take: limit,
       skip: offset,
       // TODO: relations
+      relations: {
+        images: true,
+      },
     });
 
-    return products;
+    return products.map((product) => ({
+      ...product,
+      images: product.images.map((img) => img.url),
+    }));
   }
 
-  async findOne(term: string) {
+  private async findOne(term: string) {
     let product: Product;
     if (isUUID(term)) {
       product = await this.productRepository.findOneBy({ id: term });
     } else {
       // search by slug or title Query Builder
-      const queryBuilder = this.productRepository.createQueryBuilder();
+      const queryBuilder = this.productRepository.createQueryBuilder('prod');
       product = await queryBuilder
         .where('UPPER(title) =:title or slug =:slug', {
           title: term.toUpperCase(),
           slug: term.toLowerCase(),
         })
+        .leftJoinAndSelect('prod.images', 'ProductImage')
         .getOne();
     }
 
-    if (!product) {
-      throw new NotFoundException(`Product with ${term} not found`);
-    }
+    if (!product) throw new NotFoundException(`Product with ${term} not found`);
 
     return product;
   }
 
+  async findOnePlane(term: string) {
+    const { images = [], ...product } = await this.findOne(term);
+    return { ...product, images: images.map((img) => img.url) };
+  }
+
   async update(id: string, updateProductDto: UpdateProductDto) {
-    const product = await this.productRepository.preload({
-      id: id,
-      ...updateProductDto,
-      images: [],
-    });
+    const { images, ...toUpdate } = updateProductDto;
+
+    const product = await this.productRepository.preload({ id, ...toUpdate });
 
     if (!product)
       throw new NotFoundException(`Product with id: ${id} not found`);
+
+    //create query runner
+    const queryRunner = this.dataSource.createQueryRunner();
 
     try {
       await this.productRepository.save(product);
