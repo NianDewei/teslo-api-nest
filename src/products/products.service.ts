@@ -141,4 +141,13 @@ export class ProductsService {
       'We apologize for the problems, if the problem persists, please contact the administrator.',
     );
   }
+
+  async deleteAllProducts() {
+    const query = this.productRepository.createQueryBuilder('product');
+    try {
+      return await query.delete().where({}).execute();
+    } catch (error) {
+      this.handleException(error);
+    }
+  }
 }
