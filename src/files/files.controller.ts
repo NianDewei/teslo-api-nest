@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Controller,
   Get,
   Param,
@@ -41,12 +40,11 @@ export class FilesController {
   @Post('products')
   @UseInterceptors(FileInterceptor('file', configUpload))
   uploadProductImage(@UploadedFile() file: Express.Multer.File) {
-    if (!file) {
-      throw new BadRequestException('Make sure that the file is an image');
-    }
-    const nameHost = 'http://localhost:3000/api/v1/files/products';
-    const nameImage = '/' + file.filename;
-    const secureUrlofImage = nameHost + nameImage;
+    const pathFolder = 'products';
+    const secureUrlofImage = this.filesService.getSecureUrlFile(
+      file,
+      pathFolder,
+    );
 
     return { secureUrlofImage };
   }
