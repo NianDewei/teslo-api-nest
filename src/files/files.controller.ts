@@ -6,6 +6,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
 import { FilesService } from './files.service';
 import { fileFilter } from './helpers/fileFilter.helpers';
 
@@ -14,11 +15,18 @@ export class FilesController {
   constructor(private readonly filesService: FilesService) {}
 
   @Post('products')
-  @UseInterceptors(FileInterceptor('file', { fileFilter }))
+  @UseInterceptors(
+    FileInterceptor('file', {
+      fileFilter,
+      // limits: { fileSize: 1000 },
+      storage: diskStorage({ destination: './static/products' }),
+    }),
+  )
   uploadProductImage(@UploadedFile() file: Express.Multer.File) {
     if (!file) {
       throw new BadRequestException('Make sure that the file is an image');
     }
+
     return { fileName: file.originalname };
   }
 }
